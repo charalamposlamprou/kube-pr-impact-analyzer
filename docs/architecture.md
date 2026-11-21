@@ -34,7 +34,7 @@ A trap collects limited diagnostics and removes the cluster even after failures.
 6. Escapes report content for Markdown and inserts a run URL constructed from verified repository/run identifiers.
 7. Rechecks the PR head immediately before publishing. Paginated comment lookup recognizes only the GitHub Actions bot plus the exact invisible marker. Identical content is a no-op; changed content is an update.
 
-The workflow serializes publishers to avoid simultaneous comment creation. GitHub concurrency queues can supersede pending runs in very busy repositories; rerun the latest analysis if needed. The PR-head recheck reduces, but cannot eliminate, an API-level commit/comment race; the next completed run corrects the comment. User comments containing the marker are never edited.
+The workflow serializes publishers by source repository and branch to avoid simultaneous comment creation without suppressing unrelated PR reports. GitHub concurrency queues can supersede pending older runs for the same source branch; the latest completed analysis is the desired report. The PR-head recheck reduces, but cannot eliminate, an API-level commit/comment race; the next completed run corrects the comment. User comments containing the marker are never edited.
 
 Missing or malformed artifacts produce a failure summary, not a success report. API/network failures exit nonzero, preserving any previous comment; GitHub logs show a sanitized error. The trusted workflow conclusion is appended separately from contributor-supplied report data.
 

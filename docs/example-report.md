@@ -11,6 +11,7 @@
 | static: /Service/impact-demo/payment-api | passed | built-in types and local invariants checked; not full Kubernetes admission validation |
 | static: apps/Deployment/impact-demo/payment-api | passed | built-in types and local invariants checked; not full Kubernetes admission validation |
 | static: autoscaling/HorizontalPodAutoscaler/impact-demo/payment-api | passed | built-in types and local invariants checked; not full Kubernetes admission validation |
+| Risk policy | passed | Finding threshold evaluated separately from manifest validation and runtime readiness. |
 
 Static checks, API dry-run, application and readiness are separate results. kind does not validate production capacity, policies, networking or availability.
 

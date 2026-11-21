@@ -35,7 +35,7 @@ func TestScenarios(t *testing.T) {
 			if !found {
 				t.Fatalf("missing expected finding %+v", r.Findings)
 			}
-			if validator.Failed(r.Checks) {
+			if validator.ValidationFailed(r.Checks) {
 				t.Fatalf("invalid fixture %+v", r.Checks)
 			}
 			md := report.Markdown(r, "")

@@ -28,7 +28,7 @@ type Comments interface {
 }
 
 // Upsert recognizes only github-actions[bot] comments, not attacker-authored markers.
-// Workflow concurrency serializes publishers for the repository.
+// Workflow concurrency serializes publishers for each source repository/branch.
 func Upsert(ctx context.Context, c Comments, owner, repo string, pr int, body string) error {
 	if !strings.HasPrefix(body, model.Marker) || len(body) > report.MaxComment {
 		return errors.New("invalid comment body")
@@ -91,11 +91,15 @@ func Publish(ctx context.Context, repository string, runID int64, token string) 
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" || token == "" {
 		return errors.New("publish requires owner/repo and GITHUB_TOKEN")
 	}
-	owner, repo := parts[0], parts[1]
 	client, clientErr := api.NewClient(api.WithHTTPClient(&http.Client{Timeout: 30 * time.Second}), api.WithAuthToken(token))
 	if clientErr != nil {
 		return errors.New("cannot initialize GitHub client")
 	}
+	return publish(ctx, repository, runID, client, &http.Client{Timeout: 30 * time.Second})
+}
+func publish(ctx context.Context, repository string, runID int64, client *api.Client, downloadClient *http.Client) error {
+	parts := strings.Split(repository, "/")
+	owner, repo := parts[0], parts[1]
 	run, _, e := client.Actions.GetWorkflowRunByID(ctx, owner, repo, runID)
 	if e != nil {
 		return errors.New("cannot read analysis workflow run")
@@ -156,7 +160,7 @@ func Publish(ctx context.Context, repository string, runID int64, token string) 
 		if err != nil {
 			return errors.New("invalid artifact URL")
 		}
-		resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+		resp, err := downloadClient.Do(req)
 		if err != nil {
 			return errors.New("artifact download failed")
 		}

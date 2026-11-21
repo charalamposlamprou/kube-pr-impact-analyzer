@@ -296,3 +296,13 @@ func Number(v any) float64 {
 	}
 	return n
 }
+
+// ValidationFailed excludes the independent policy result from exit-code precedence.
+func ValidationFailed(cs []model.Check) bool {
+	for _, c := range cs {
+		if c.Status == "failed" && c.Name != "Risk policy" {
+			return true
+		}
+	}
+	return false
+}

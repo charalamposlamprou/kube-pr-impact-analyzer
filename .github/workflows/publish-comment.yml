@@ -7,9 +7,9 @@ permissions:
   contents: read
   actions: read
   pull-requests: write
-# Serialization prevents two check-then-create publishers from creating duplicates.
+# Serialize each PR source branch without dropping reports for unrelated PRs.
 concurrency:
-  group: kube-impact-comment-publisher
+  group: kube-impact-comment-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 jobs:
   publish:

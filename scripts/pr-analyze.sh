@@ -35,7 +35,7 @@ source,checks,output,analysis_rc,kind_rc,quality=sys.argv[1:]
 r=json.load(open(source))
 if pathlib.Path(checks).exists(): r['checks'].extend(json.load(open(checks)))
 else: r['checks'].append({'name':'kind integration','status':'skipped','detail':'Rendering did not complete; cluster testing was not started.'})
-r['checks'].append({'name':'Risk policy','status':'failed' if analysis_rc=='3' else ('skipped' if analysis_rc=='1' else 'passed'),'detail':'Configured finding severity threshold evaluated independently from runtime readiness.'})
+if not any(c['name']=='Risk policy' for c in r['checks']): r['checks'].append({'name':'Risk policy','status':'skipped','detail':'Rendering did not complete; policy not evaluated.'})
 r['checks'].append({'name':'Go tests and static checks','status':'passed' if quality=='success' else 'failed','detail':'Separate read-only job checks the proposed source revision.'})
 with open(output,'w') as f: json.dump(r,f,indent=2)
 PY

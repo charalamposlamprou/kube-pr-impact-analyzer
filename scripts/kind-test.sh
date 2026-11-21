@@ -46,6 +46,8 @@ cleanup() {
  exit "$rc"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 for tool in go docker kind kubectl python3; do command -v "$tool" >/dev/null || { record 'kind cluster' failed "Required tool missing: $tool"; exit 1; }; done
 if [ ! -x "$BIN" ]; then (cd "$ROOT" && go build -trimpath -o "$BIN" ./cmd/kube-impact); fi
 record 'kind cluster' failed 'Cluster creation or image loading did not complete.'
@@ -57,14 +59,7 @@ case "$ARCH" in aarch64|arm64) ARCH=arm64 ;; x86_64|amd64) ARCH=amd64 ;; *) exit
 mkdir -p "$TMP/image"
 for VERSION in 1.0.0 1.1.0; do
  (cd "$ROOT" && CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "$TMP/image/demo-$VERSION" ./cmd/demo)
- cat > "$TMP/image/Dockerfile" <<DOCKER
-FROM scratch
-COPY demo-$VERSION /demo
-USER 10001:10001
-EXPOSE 8080
-ENTRYPOINT ["/demo"]
-DOCKER
- docker build --quiet --tag "kube-impact-demo:$VERSION" "$TMP/image" >/dev/null
+ docker build --quiet --file "$ROOT/examples/Dockerfile.demo" --build-arg "VERSION=$VERSION" --tag "kube-impact-demo:$VERSION" "$TMP/image" >/dev/null
  kind load docker-image "kube-impact-demo:$VERSION" --name "$CLUSTER"
 done
 record 'kind cluster' passed 'Disposable Kubernetes 1.35 cluster ready; locally built demo images loaded.'
