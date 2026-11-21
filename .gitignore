@@ -1,0 +1,6 @@
+/bin/
+/.build/
+/artifacts/
+/coverage.out
+*.test
+.DS_Store

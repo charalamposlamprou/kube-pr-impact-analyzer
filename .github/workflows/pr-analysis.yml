@@ -1,0 +1,74 @@
+name: PR Kubernetes analysis
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: kube-impact-analysis-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - run: scripts/install-tools.sh
+      - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: make check
+        env:
+          REQUIRE_RENDER_TOOLS: '1'
+  impact:
+    needs: quality
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout trusted analyzer and policy
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Checkout proposed manifests without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: proposed
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - run: trusted/scripts/install-tools.sh
+      - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build analyzer from trusted base
+        working-directory: trusted
+        run: go build -trimpath -o bin/kube-impact ./cmd/kube-impact
+      - name: Independently render revisions, compare, validate and test in kind
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: trusted/scripts/pr-analyze.sh "$GITHUB_WORKSPACE/trusted" "$GITHUB_WORKSPACE/proposed" "$GITHUB_WORKSPACE/artifacts"
+      - name: Upload redacted report data
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kube-impact-report
+          path: artifacts/report.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload limited diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kind-diagnostics
+          path: artifacts/diagnostics/*.txt
+          if-no-files-found: ignore
+          retention-days: 3

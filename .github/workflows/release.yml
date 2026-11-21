@@ -1,0 +1,30 @@
+name: Publish container
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push tagged image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          IMAGE="ghcr.io/${REPOSITORY,,}"
+          docker build --build-arg VERSION="$VERSION" --tag "$IMAGE:$VERSION" .
+          docker push "$IMAGE:$VERSION"

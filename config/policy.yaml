@@ -1,0 +1,10 @@
+# Thresholds apply only to confirmed changes, not pre-existing settings.
+failOn: high
+significantRequestIncreasePercent: 50
+requireLimits: true
+rules:
+  configuration-changed:
+    severity: low
+  privileged:
+    enabled: true
+    severity: high

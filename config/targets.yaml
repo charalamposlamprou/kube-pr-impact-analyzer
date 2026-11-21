@@ -1,0 +1,6 @@
+# Paths are relative to each independently checked-out revision.
+# Keep fixtures out of production targets. Missing target = no resources in that revision.
+targets:
+  - path: examples/head
+    mode: yaml
+    namespace: impact-demo
