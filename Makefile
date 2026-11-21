@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: build test check lint tools kind-test demo clean
+.PHONY: build test check lint tools kind-test kind-failure-tests demo clean
 build:
 	go build -trimpath -o bin/kube-impact ./cmd/kube-impact
 test:
@@ -12,6 +12,8 @@ lint:
 check: build test lint
 kind-test: build
 	scripts/kind-test.sh examples/head artifacts/kind
+kind-failure-tests: build
+	scripts/test-failure-paths.sh
 demo: build
 	bin/kube-impact report --base examples/base --head examples/scenarios/a-resources --output artifacts/report.md
 tools:

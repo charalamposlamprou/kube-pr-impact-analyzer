@@ -2,6 +2,8 @@
 
 Review the **rendered Kubernetes configuration a pull request would change**, with actionable risk findings and real kind validation. Built in Go; no AI service, database, or GitHub credentials required for local use.
 
+[Live demo PR](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/pull/9) · [Automatically updated bot report](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/pull/9#issuecomment-7059066918)
+
 The core engine compares Kubernetes objects, **not Git hunks or YAML text**. It independently renders both revisions, identifies resources by `(API group, Kind, Namespace, Name)`, normalizes quantities and known unordered fields, and reports additions, deletions and meaningful changes. A Helm values change is analyzed through the Deployment produced by Helm.
 
 ## What you get
@@ -137,7 +139,7 @@ The gate rejects privileged containers, host namespaces, arbitrary images, host 
 |---|---|---|
 | [A: resources](examples/scenarios/a-resources/demo.yaml) | Double requests and limits | Medium: CPU and memory requests +100%; possible capacity impact |
 | [B: scaling](examples/scenarios/b-scaling/demo.yaml) | Replicas 3 → 1, HPA max 5 → 2 and target 70 → 60 | Medium: lower replica count and scaling ceiling |
-| [C: security](examples/scenarios/c-security/demo.yaml) | Enable privileged mode | High; policy fails; apply gate rejects |
+| [C: security](examples/scenarios/c-security/demo.yaml) | Enable privileged mode and privilege escalation | High; policy fails; apply gate rejects |
 | [D: networking](examples/scenarios/d-networking/demo.yaml) | ClusterIP → LoadBalancer | High: potential exposure/cost; apply gate rejects |
 | [E: safe image](examples/scenarios/e-safe-image/demo.yaml) | Approved version 1.0.0 → 1.1.0 | Low: normal workload rollout; no high/medium finding |
 | [F: multiple](examples/scenarios/f-multiple/demo.yaml) | Resources, scaling, image and Service | Consolidated report for three changed resources; high exposure finding |
@@ -228,6 +230,7 @@ Resource API **version** changes are fields on the same group/kind identity. Nam
 ```bash
 make check             # build, race tests, vet, Staticcheck, Actionlint
 make kind-test         # requires Docker and cluster tools
+make kind-failure-tests # prove API rejection and safety-gate rejection are distinct
 make demo
 
 docker build -t kube-impact:local .
@@ -247,6 +250,7 @@ Read [SECURITY.md](SECURITY.md) and [architecture/security boundaries](docs/arch
 - kind validates its own Kubernetes API and the isolated demo. It cannot establish production capacity, cloud load-balancer behavior, NetworkPolicy enforcement, production security-policy acceptance or availability. NetworkPolicy semantics depend on a supporting CNI.
 - No resource is deployed to a production cluster. CLI `validate --server` is dry-run only. The kind harness applies just the allowlisted demo.
 - Helm randomness, time functions, remote dependencies and environment-dependent generators can make renders non-reproducible. Vendor inputs, avoid those functions and use deterministic values. Rendering is not a sandbox for hostile template engines: use disposable runners without credentials.
+- A fresh kind cluster has no production resource history; dry-run cannot establish that an update satisfies immutability constraints against existing production objects.
 - Defaulting and admission mutation are not simulated in the semantic diff. An omitted field and explicit API default can appear different. Unknown custom resources default to namespaced unless a matching cluster-scoped CRD is included.
 - RBAC findings identify changed wildcard permissions, not a complete authorization graph. Runtime risks are qualified possibilities; no AI-generated predictions are used.
 - Report data is generated in a read-only PR job and is informational. Its structure, origin and association are checked, but a contributor who changes the workflow can fabricate its content. The publisher never treats it as executable code or a security authorization.

@@ -74,6 +74,9 @@ func Markdown(r model.Report, runURL string) string {
 	return b.String()
 }
 func label(p string) string {
+	if strings.HasSuffix(p, "::type") {
+		return "Value type · " + strings.TrimSuffix(p, "::type")
+	}
 	for _, x := range []struct{ suffix, label string }{{".resources.requests.cpu", "CPU Request"}, {".resources.limits.cpu", "CPU Limit"}, {".resources.requests.memory", "Memory Request"}, {".resources.limits.memory", "Memory Limit"}} {
 		if strings.HasSuffix(p, x.suffix) {
 			return x.label + " · " + strings.TrimSuffix(p, x.suffix)

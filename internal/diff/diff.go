@@ -18,15 +18,35 @@ import (
 
 const Absent = "—"
 
+var simpleKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+const typeSuffix = "::type"
+
 var sensitive = regexp.MustCompile(`(?i)(password|passwd|token|credential|private.?key|api.?key|secret.?value|authorization)`)
 var keyedLists = map[string]string{"containers": "name", "initContainers": "name", "ephemeralContainers": "name", "env": "name", "volumes": "name", "volumeMounts": "mountPath", "imagePullSecrets": "name"}
 
 // Fields produces a stable structural representation. Associative Kubernetes lists
 // are keyed by identity; ordered lists such as command/args retain their order.
-func Fields(r model.Resource) map[string]string {
+func Fields(r model.Resource, includeTypes ...bool) map[string]string {
 	out := map[string]string{}
 	var walk func(any, string)
 	walk = func(v any, p string) {
+		if len(includeTypes) > 0 && includeTypes[0] && p != "" && !IsQuantity(p) {
+			kind := "null"
+			switch v.(type) {
+			case map[string]any:
+				kind = "object"
+			case []any:
+				kind = "array"
+			case string:
+				kind = "string"
+			case bool:
+				kind = "boolean"
+			case json.Number:
+				kind = "number"
+			}
+			out[p+typeSuffix] = kind
+		}
 		switch x := v.(type) {
 		case map[string]any:
 			if len(x) == 0 {
@@ -39,7 +59,7 @@ func Fields(r model.Resource) map[string]string {
 			sort.Strings(keys)
 			for _, k := range keys {
 				np := k
-				if strings.ContainsAny(k, ".[]") {
+				if !simpleKey.MatchString(k) {
 					np = p + "[" + strconv.Quote(k) + "]"
 				} else if p != "" {
 					np = p + "." + k
@@ -266,10 +286,10 @@ func Compare(base, head []model.Resource) []model.Change {
 		b, hasB := after[id]
 		af, bf := map[string]string{}, map[string]string{}
 		if hasA {
-			af = Fields(a)
+			af = Fields(a, true)
 		}
 		if hasB {
-			bf = Fields(b)
+			bf = Fields(b, true)
 		}
 		action := "modified"
 		if !hasA {
@@ -294,6 +314,9 @@ func Compare(base, head []model.Resource) []model.Change {
 		for _, p := range keys {
 			av, aok := af[p]
 			bv, bok := bf[p]
+			if strings.HasSuffix(p, typeSuffix) && (!aok || !bok) {
+				continue
+			}
 			if aok && bok && av == bv {
 				continue
 			}

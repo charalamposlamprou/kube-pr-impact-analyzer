@@ -265,3 +265,23 @@ func TestInitializationAndEnvironmentExpansionOrderMatter(t *testing.T) {
 		}
 	}
 }
+
+func TestScalarTypesAreSemantic(t *testing.T) {
+	for _, pair := range [][2]string{{`"true"`, `true`}, {`"1"`, `1`}, {`"null"`, `null`}, {`"{}"`, `{}`}, {`"[]"`, `[]`}} {
+		base := "apiVersion: example.io/v1\nkind: Widget\nmetadata: {name: api}\nspec: {value: " + pair[0] + "}"
+		head := "apiVersion: example.io/v1\nkind: Widget\nmetadata: {name: api}\nspec: {value: " + pair[1] + "}"
+		cs := diff.Compare(parse(t, base), parse(t, head))
+		if len(cs) != 1 {
+			t.Fatalf("type difference %v disappeared", pair)
+		}
+		found := false
+		for _, f := range cs[0].Fields {
+			if strings.HasSuffix(f.Path, "::type") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("missing type explanation %+v", cs)
+		}
+	}
+}
