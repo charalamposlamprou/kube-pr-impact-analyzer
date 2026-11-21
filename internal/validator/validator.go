@@ -2,6 +2,7 @@
 package validator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -130,7 +131,9 @@ func Write(rs []model.Resource, path string) error {
 	for _, r := range rs {
 		b, _ := json.Marshal(r.Object)
 		var o map[string]any
-		_ = json.Unmarshal(b, &o)
+		dec := json.NewDecoder(bytes.NewReader(b))
+		dec.UseNumber()
+		_ = dec.Decode(&o)
 		m := Map(o["metadata"])
 		if r.ID.Namespace != "" {
 			m["namespace"] = r.ID.Namespace
@@ -141,7 +144,16 @@ func Write(rs []model.Resource, path string) error {
 	if e != nil {
 		return e
 	}
-	return os.WriteFile(path, append(b, '\n'), 0600)
+	f, e := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	if e = f.Chmod(0600); e != nil {
+		return e
+	}
+	_, e = f.Write(append(b, '\n'))
+	return e
 }
 func Server(ctx context.Context, rs []model.Resource, kubeContext string) model.Check {
 	c := model.Check{Name: "Kubernetes API validation", Status: "failed"}

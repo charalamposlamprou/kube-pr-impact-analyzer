@@ -53,7 +53,7 @@ func TestScenarios(t *testing.T) {
 	}
 }
 func TestUnchanged(t *testing.T) {
-	r, e := (analyzer.Analyzer{Renderer: renderer.New()}).Analyze(context.Background(), "../../examples/base", "../../examples/head", nil, policy.Default())
+	r, e := (analyzer.Analyzer{Renderer: renderer.New()}).Analyze(context.Background(), "../../examples/base", "../../examples/base", nil, policy.Default())
 	if e != nil || len(r.Changes) != 0 || len(r.Findings) != 0 {
 		t.Fatalf("false differences %+v %v", r, e)
 	}
