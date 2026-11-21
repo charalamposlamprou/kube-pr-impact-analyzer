@@ -221,7 +221,7 @@ Rules evaluate changes, not a full security audit of pre-existing configuration.
 | PVC | Storage requests, access modes, storage class and volume binding fields |
 | Unknown kinds and CRDs | Generic recursive structural diff; cluster scope inferred from included CRDs |
 
-Resource API **version** changes are fields on the same group/kind identity. Namespace omission normalizes to the target namespace (`default` unless configured); built-in cluster-scoped resources have no namespace. Status and server-assigned metadata are ignored. Known set-like RBAC and policy lists are sorted; ordered command/argument and unknown CRD lists stay ordered. CPU uses millicores; equivalent binary/decimal memory quantities compare equally.
+Resource API **version** changes are fields on the same group/kind identity. Namespace omission normalizes to the target namespace (`default` unless configured); built-in cluster-scoped resources have no namespace. Status and server-assigned metadata are ignored. Known set-like RBAC and policy lists are normalized, including equivalent split permission rules. Init-container order and environment declaration order used by variable expansion remain significant; ordered command/argument and unknown CRD lists stay ordered. CPU uses millicores; equivalent binary/decimal memory quantities compare equally.
 
 ## Development and packaging
 

@@ -244,3 +244,24 @@ rules:
 		t.Fatalf("splitting an equivalent permission rule created diff %+v", cs)
 	}
 }
+
+func TestInitializationAndEnvironmentExpansionOrderMatter(t *testing.T) {
+	for _, field := range []string{"initContainers", "env"} {
+		a := "apiVersion: v1\nkind: Pod\nmetadata: {name: api}\nspec:\n  "
+		if field == "env" {
+			a += "containers:\n  - name: api\n    env:\n    - {name: FIRST, value: one}\n    - {name: SECOND, value: '$(FIRST)'}\n"
+		} else {
+			a += "initContainers:\n  - {name: FIRST, image: demo:1}\n  - {name: SECOND, image: demo:2}\n"
+		}
+		var b string
+		if field == "env" {
+			b = strings.Replace(a, "    - {name: FIRST, value: one}\n    - {name: SECOND, value: '$(FIRST)'}", "    - {name: SECOND, value: '$(FIRST)'}\n    - {name: FIRST, value: one}", 1)
+		} else {
+			b = strings.Replace(a, "  - {name: FIRST, image: demo:1}\n  - {name: SECOND, image: demo:2}", "  - {name: SECOND, image: demo:2}\n  - {name: FIRST, image: demo:1}", 1)
+		}
+		cs := diff.Compare(parse(t, a), parse(t, b))
+		if len(cs) != 1 || len(cs[0].Fields) != 1 || !strings.HasSuffix(cs[0].Fields[0].Path, ".order") {
+			t.Fatalf("%s order change lost: %+v", field, cs)
+		}
+	}
+}

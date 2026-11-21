@@ -109,7 +109,10 @@ func Fields(r model.Resource) map[string]string {
 					return
 				}
 			}
-			key := keyedLists[segment]
+			key := ""
+			if r.ID.Group == "" || r.ID.Group == "apps" || r.ID.Group == "batch" {
+				key = keyedLists[segment]
+			}
 			if key != "" {
 				seen := map[string]bool{}
 				valid := true
@@ -123,6 +126,24 @@ func Fields(r model.Resource) map[string]string {
 					seen[s] = true
 				}
 				if valid {
+					// Init containers execute sequentially. Env expansion can depend on declaration order.
+					ordered := segment == "initContainers"
+					if segment == "env" {
+						for _, item := range x {
+							m := item.(map[string]any)
+							value, _ := m["value"].(string)
+							if strings.Contains(value, "$(") {
+								ordered = true
+							}
+						}
+					}
+					if ordered {
+						names := make([]string, 0, len(x))
+						for _, item := range x {
+							names = append(names, item.(map[string]any)[key].(string))
+						}
+						out[p+".order"] = canonical(names)
+					}
 					for _, item := range x {
 						m := item.(map[string]any)
 						walk(item, p+"["+strconv.Quote(m[key].(string))+"]")
@@ -291,7 +312,11 @@ func Compare(base, head []model.Resource) []model.Change {
 					delta = fmt.Sprintf("%+.1f%%", pct)
 				}
 			}
-			fields = append(fields, model.Field{Path: p, Before: Safe(id, p, av), After: Safe(id, p, bv), Change: delta})
+			safeBefore, safeAfter := Safe(id, p, av), Safe(id, p, bv)
+			if safeBefore == "[REDACTED]" && safeAfter == "[REDACTED]" {
+				delta = "changed (redacted)"
+			}
+			fields = append(fields, model.Field{Path: p, Before: safeBefore, After: safeAfter, Change: delta})
 		}
 		if len(fields) > 0 || action != "modified" {
 			changes = append(changes, model.Change{Resource: id, Action: action, Fields: fields})

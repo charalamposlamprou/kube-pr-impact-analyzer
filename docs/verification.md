@@ -14,3 +14,11 @@ Executed successfully during implementation:
 Raw rendered manifests are not included in verification artifacts. Local reports and limited kind diagnostics live under the ignored `artifacts/` directory. The public example report is generated from non-sensitive fixtures.
 
 GitHub-hosted workflow and bot verification is recorded below after publication. No statement here implies production capacity, CNI policy enforcement, cloud networking, HPA scaling behavior or availability was tested.
+
+## GitHub-hosted evidence
+
+- [Hosted CI](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/actions/runs/44878372055) passed build, race tests, static analysis, workflow lint, real kind integration and Docker packaging.
+- [Demo PR #9](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/pull/9) changes the proposed deployment's resources.
+- [Initial PR analysis](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/actions/runs/44878446393) passed both quality and impact jobs, including the increased-resource kind deployment.
+- [Bot report](https://github.com/charalamposlamprou/kube-pr-impact-analyzer/pull/9#issuecomment-7059066918) was created by `github-actions[bot]` through the separate publisher, with four +100% changes and all checks passed.
+- A second local kind run with `examples/scenarios/a-resources` passed API validation, rollout and live configuration/HTTP assertions with the increased CPU/memory settings.
