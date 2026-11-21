@@ -181,7 +181,7 @@ func run(ctx context.Context, args []string) int {
 	if e != nil {
 		return fail(e)
 	}
-	if validator.Failed(r.Checks) {
+	if validator.ValidationFailed(r.Checks) {
 		return 2
 	}
 	if args[0] == "analyze" && p.Violated(r.Findings) {

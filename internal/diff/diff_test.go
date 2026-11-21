@@ -193,3 +193,54 @@ func TestProbeHeaderAndDottedConfigRedaction(t *testing.T) {
 		t.Fatal("dotted value leaked")
 	}
 }
+
+func TestMalformedSensitiveValuesStillRedacted(t *testing.T) {
+	a := `apiVersion: v1
+kind: ConfigMap
+metadata: {name: a}
+data: first-private-value
+`
+	b := strings.ReplaceAll(a, "first-private-value", "second-private-value")
+	raw, _ := json.Marshal(diff.Compare(parse(t, a), parse(t, b)))
+	if strings.Contains(string(raw), "private-value") {
+		t.Fatal("malformed ConfigMap leaked")
+	}
+	a = strings.Replace(deployment, "image: demo:1", "image: demo:1\n          env:\n            - name: PRIVATE\n              value: {unexpected: first-private-value}", 1)
+	b = strings.ReplaceAll(a, "first-private-value", "second-private-value")
+	raw, _ = json.Marshal(diff.Compare(parse(t, a), parse(t, b)))
+	if strings.Contains(string(raw), "private-value") {
+		t.Fatal("malformed env leaked")
+	}
+}
+
+func TestRBACRuleInsertionAndSplitAreSemantic(t *testing.T) {
+	a := `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: a}
+rules:
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: ["*"]
+`
+	b := a + `- apiGroups: [""]
+  resources: [pods]
+  verbs: [get]
+`
+	cs := diff.Compare(parse(t, a), parse(t, b))
+	if len(cs) != 1 {
+		t.Fatal(cs)
+	}
+	for _, f := range cs[0].Fields {
+		if f.After == "*" || f.Before == "*" {
+			t.Fatal("unchanged wildcard appeared in diff")
+		}
+	}
+	a = strings.ReplaceAll(a, `"*"`, "get, list")
+	b = strings.ReplaceAll(a, "get, list", "get") + `- apiGroups: [apps]
+  resources: [deployments]
+  verbs: [list]
+`
+	if cs := diff.Compare(parse(t, a), parse(t, b)); len(cs) != 0 {
+		t.Fatalf("splitting an equivalent permission rule created diff %+v", cs)
+	}
+}

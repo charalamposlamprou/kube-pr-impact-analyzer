@@ -28,5 +28,10 @@ func (a Analyzer) Analyze(ctx context.Context, base, head string, targets []rend
 	r.Changes = diff.Compare(b, h)
 	r.Findings = p.Evaluate(r.Changes, h)
 	r.Checks = validator.Static(h)
+	status := "passed"
+	if p.Violated(r.Findings) {
+		status = "failed"
+	}
+	r.Checks = append(r.Checks, model.Check{Name: "Risk policy", Status: status, Detail: "Finding threshold evaluated separately from manifest validation and runtime readiness."})
 	return r, nil
 }

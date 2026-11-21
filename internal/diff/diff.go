@@ -61,6 +61,54 @@ func Fields(r model.Resource) map[string]string {
 				return
 			}
 			segment := p[strings.LastIndex(p, ".")+1:]
+			if segment == "rules" && (r.ID.Kind == "Role" || r.ID.Kind == "ClusterRole") && r.ID.Group == "rbac.authorization.k8s.io" {
+				groups := map[string]map[string]any{}
+				valid := true
+				for _, item := range x {
+					rule, ok := item.(map[string]any)
+					if !ok {
+						valid = false
+						break
+					}
+					scope := map[string]any{}
+					for k, v := range rule {
+						if k != "verbs" {
+							scope[k] = v
+						}
+					}
+					identity := canonical(scope)
+					merged, ok := groups[identity]
+					if !ok {
+						merged = map[string]any{}
+						for k, v := range rule {
+							merged[k] = v
+						}
+						groups[identity] = merged
+					} else {
+						old, _ := merged["verbs"].([]any)
+						extra, _ := rule["verbs"].([]any)
+						merged["verbs"] = append(old, extra...)
+					}
+				}
+				if valid {
+					for identity, rule := range groups {
+						verbs, _ := rule["verbs"].([]any)
+						seen := map[string]bool{}
+						unique := []any{}
+						for _, verb := range verbs {
+							k := canonical(verb)
+							if !seen[k] {
+								seen[k] = true
+								unique = append(unique, verb)
+							}
+						}
+						sort.Slice(unique, func(i, j int) bool { return canonical(unique[i]) < canonical(unique[j]) })
+						rule["verbs"] = unique
+						walk(rule, p+"["+strconv.Quote(identity)+"]")
+					}
+					return
+				}
+			}
 			key := keyedLists[segment]
 			if key != "" {
 				seen := map[string]bool{}
@@ -164,7 +212,9 @@ func Safe(r model.ID, p, s string) string {
 	if r.Kind == "Secret" && p != "kind" && p != "apiVersion" && p != "metadata.name" && p != "metadata.namespace" {
 		return "[REDACTED]"
 	}
-	if sensitive.MatchString(p) || (strings.Contains(p, ".annotations.") || strings.Contains(p, ".annotations[")) || (strings.HasPrefix(p, "data.") || strings.HasPrefix(p, "data[")) || (strings.HasPrefix(p, "binaryData.") || strings.HasPrefix(p, "binaryData[")) || (strings.HasPrefix(p, "stringData.") || strings.HasPrefix(p, "stringData[")) || strings.Contains(p, ".env[") && strings.HasSuffix(p, ".value") || strings.Contains(p, ".command[") || strings.Contains(p, ".args[") || strings.Contains(p, ".httpHeaders[") && strings.HasSuffix(p, ".value") {
+	envLiteral := strings.Contains(p, ".env[") && (strings.HasSuffix(p, ".value") || strings.Contains(p, ".value.") || strings.Contains(p, ".value["))
+	opaque := p == "data" || p == "binaryData" || p == "stringData" || strings.HasSuffix(p, ".env") || strings.HasSuffix(p, ".command") || strings.HasSuffix(p, ".args")
+	if envLiteral || opaque || sensitive.MatchString(p) || (strings.Contains(p, ".annotations.") || strings.Contains(p, ".annotations[")) || (strings.HasPrefix(p, "data.") || strings.HasPrefix(p, "data[")) || (strings.HasPrefix(p, "binaryData.") || strings.HasPrefix(p, "binaryData[")) || (strings.HasPrefix(p, "stringData.") || strings.HasPrefix(p, "stringData[")) || strings.Contains(p, ".env[") && strings.HasSuffix(p, ".value") || strings.Contains(p, ".command[") || strings.Contains(p, ".args[") || strings.Contains(p, ".httpHeaders[") && strings.HasSuffix(p, ".value") {
 		return "[REDACTED]"
 	}
 	value := Display(p, s)
